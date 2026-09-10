@@ -58,7 +58,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function CloudGate() {
-  const { user, loading, error, signIn } = useAuth();
+  const { user, loading, error, errorCode, signIn, clearError } = useAuth();
 
   if (loading) {
     return (
@@ -90,7 +90,32 @@ function CloudGate() {
           >
             Σύνδεση με Google
           </button>
-          {error && <p className="mt-3 text-xs text-red-500">{error}</p>}
+          <p className="mt-3 text-[10px] leading-4 text-muted-foreground">
+            Αν το Google παράθυρο ανοίξει και κλείσει αμέσως, εδώ θα εμφανιστεί πλέον
+            ο ακριβής λόγος.
+          </p>
+          {error && (
+            <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-left">
+              <p className="text-sm font-semibold text-red-500">
+                Η σύνδεση δεν ολοκληρώθηκε
+              </p>
+              <p className="mt-2 text-xs leading-5 text-red-400">{error}</p>
+              {errorCode && (
+                <p className="mt-2 font-mono text-[10px] text-muted-foreground">
+                  Κωδικός: {errorCode}
+                </p>
+              )}
+              <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+                Τρέχον domain: {typeof window !== "undefined" ? window.location.hostname : ""}
+              </p>
+              <button
+                onClick={clearError}
+                className="mt-3 rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground"
+              >
+                Κλείσιμο μηνύματος
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
