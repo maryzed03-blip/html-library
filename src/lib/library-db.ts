@@ -6,8 +6,7 @@ import {
   setDoc,
   type Unsubscribe,
 } from "firebase/firestore";
-import { deleteObject, getDownloadURL, ref, uploadString } from "firebase/storage";
-import { firestore, storage } from "./firebase";
+import { firestore } from "./firebase";
 
 export type Folder = {
   id: string;
@@ -32,15 +31,20 @@ export type Component = {
 const userCollection = (uid: string, name: "folders" | "components") =>
   collection(firestore, "users", uid, name);
 
-async function cloudImage(uid: string, component: Component): Promise<string | null> {
-  if (!component.image?.startsWith("data:")) return component.image;
-  const objectRef = ref(storage, `users/${uid}/previews/${component.id}`);
-  await uploadString(objectRef, component.image, "data_url");
-  return getDownloadURL(objectRef);
+function utf8Bytes(value: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(value)).byteLength;
 }
 
+// Firestore documents have a hard size limit. Keep a safety margin instead of
+// attempting a write that will fail with an unclear Firebase error.
+const SAFE_COMPONENT_BYTES = 850_000;
+
 export const db = {
-  watchFolders(uid: string, onData: (items: Folder[]) => void, onError: (error: Error) => void): Unsubscribe {
+  watchFolders(
+    uid: string,
+    onData: (items: Folder[]) => void,
+    onError: (error: Error) => void,
+  ): Unsubscribe {
     return onSnapshot(
       userCollection(uid, "folders"),
       (snap) => onData(snap.docs.map((d) => d.data() as Folder)),
@@ -70,19 +74,23 @@ export const db = {
   },
 
   async putComponent(uid: string, component: Component): Promise<Component> {
-    const image = await cloudImage(uid, component);
-    const next = { ...component, image };
-    await setDoc(doc(firestore, "users", uid, "components", component.id), next);
-    return next;
+    const bytes = utf8Bytes(component);
+    if (bytes > SAFE_COMPONENT_BYTES) {
+      throw new Error(
+        "Το component είναι πολύ μεγάλο για αποθήκευση στο Firestore. " +
+        "Μείωσε την εικόνα preview ή αφαίρεσέ την και χρησιμοποίησε το αυτόματο HTML preview."
+      );
+    }
+
+    await setDoc(
+      doc(firestore, "users", uid, "components", component.id),
+      component,
+    );
+    return component;
   },
 
   async deleteComponent(uid: string, id: string) {
     await deleteDoc(doc(firestore, "users", uid, "components", id));
-    try {
-      await deleteObject(ref(storage, `users/${uid}/previews/${id}`));
-    } catch {
-      // No preview image is also a valid state.
-    }
   },
 };
 

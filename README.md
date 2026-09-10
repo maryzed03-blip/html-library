@@ -1,28 +1,27 @@
-# HTML Canvas — Web + Firebase
+# HTML Canvas — GitHub / Vercel / Firebase Spark
 
-Web έκδοση του HTML Canvas για GitHub/Vercel με Firebase cloud persistence.
+Web έκδοση της εφαρμογής χωρίς Lovable, χωρίς Windows launcher και χωρίς Firebase Storage.
 
-## Stack
-- React + Vite
-- TanStack Router
+## Χρησιμοποιεί
+- GitHub για τον κώδικα
+- Vercel για hosting/build
 - Firebase Authentication (Google)
-- Cloud Firestore
-- Firebase Storage
+- Cloud Firestore για φακέλους, HTML components και προαιρετικά συμπιεσμένα preview thumbnails
 - Firebase Analytics
 
-## Local development
-```bash
-npm install
-npm run dev
-```
+## Σημαντικό
+Δεν χρησιμοποιείται καθόλου Firebase Storage. Η έκδοση είναι κατάλληλη για Firebase Spark, μέσα στα όρια χρήσης του δωρεάν πλάνου.
 
-## Production build
-```bash
-npm run build
-```
+Οι preview εικόνες συμπιέζονται αυτόματα σε μικρό JPEG thumbnail πριν αποθηκευτούν μαζί με το component στο Firestore. Αν δεν χρειάζεσαι εικόνα, άφησέ την κενή και η εφαρμογή χρησιμοποιεί αυτόματο HTML preview.
 
 ## Firebase
-Το project είναι ήδη συνδεδεμένο με το Firebase project `html-library-861db`.
-Πριν από την πρώτη χρήση ενεργοποίησε Google Authentication, Firestore και Storage και δημοσίευσε τα rules των `firestore.rules` και `storage.rules`.
+1. Authentication → Sign-in method → Google → Enable.
+2. Firestore Database → Create database.
+3. Firestore → Rules → βάλε το περιεχόμενο του `firestore.rules` → Publish.
+4. Μετά το Vercel deploy, πρόσθεσε το `xxxxx.vercel.app` στα Authentication → Settings → Authorized domains.
 
-Δες το `README-GITHUB-VERCEL-FIREBASE.txt` για τα βήματα deployment.
+## Vercel
+Κάνε import το GitHub repository. Το project είναι Vite και περιλαμβάνει `vercel.json`.
+
+Build command: `npm run build`
+Output directory: `dist`

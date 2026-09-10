@@ -16,12 +16,12 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Προσωπική cloud βιβλιοθήκη HTML components με Firebase, PNG previews, φακέλους, tags και άμεσο Copy Code.",
+          "Προσωπική cloud βιβλιοθήκη HTML components με Firebase Firestore, previews, φακέλους, tags και άμεσο Copy Code.",
       },
       { property: "og:title", content: "HTML Library — Cloud βιβλιοθήκη components" },
       {
         property: "og:description",
-        content: "Αποθήκευσε HTML sections με PNG preview και αντίγραψε τον κώδικα με ένα κλικ.",
+        content: "Αποθήκευσε HTML sections με προαιρετικό preview και αντίγραψε τον κώδικα με ένα κλικ.",
       },
     ],
   }),

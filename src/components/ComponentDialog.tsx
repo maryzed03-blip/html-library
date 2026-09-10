@@ -27,6 +27,52 @@ function readFileAsDataURL(file: File): Promise<string> {
   });
 }
 
+async function makeFirestorePreview(file: File): Promise<string> {
+  const original = await readFileAsDataURL(file);
+
+  return new Promise((resolve) => {
+    const img = new Image();
+
+    img.onload = () => {
+      // A preview is only a thumbnail. Keeping it small makes Spark/Firestore
+      // practical and avoids hitting Firestore's per-document size limit.
+      const maxWidth = 640;
+      const maxHeight = 360;
+      const scale = Math.min(
+        1,
+        maxWidth / Math.max(1, img.naturalWidth),
+        maxHeight / Math.max(1, img.naturalHeight),
+      );
+
+      const width = Math.max(1, Math.round(img.naturalWidth * scale));
+      const height = Math.max(1, Math.round(img.naturalHeight * scale));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(original);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // JPEG is intentionally used for compact Firestore preview storage.
+      // If conversion fails, keep the original data URL.
+      try {
+        resolve(canvas.toDataURL("image/jpeg", 0.72));
+      } catch {
+        resolve(original);
+      }
+    };
+
+    img.onerror = () => resolve(original);
+    img.src = original;
+  });
+}
+
 function readFileAsText(file: File): Promise<string> {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -67,7 +113,7 @@ export function ComponentDialog({
   const handleFiles = async (files: FileList | null) => {
     if (!files) return;
     for (const file of Array.from(files)) {
-      if (file.type.startsWith("image/")) setImage(await readFileAsDataURL(file));
+      if (file.type.startsWith("image/")) setImage(await makeFirestorePreview(file));
       else if (/\.(html?|txt)$/i.test(file.name) || file.type.includes("html")) {
         setHtml(await readFileAsText(file));
         if (!name) setName(file.name.replace(/\.[^.]+$/, ""));
@@ -120,7 +166,7 @@ export function ComponentDialog({
         />
 
         <label className="mb-1 block text-xs text-muted-foreground">
-          2. Εικόνα preview (PNG) — προαιρετικό, αλλιώς γίνεται auto preview από το HTML
+          2. Εικόνα preview — προαιρετική, συμπιέζεται αυτόματα και αποθηκεύεται στο Firestore
         </label>
         <div className="mb-4 flex items-center gap-3">
           <div className="grid h-24 w-40 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-ink2">

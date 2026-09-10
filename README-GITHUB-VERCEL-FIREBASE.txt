@@ -1,60 +1,73 @@
-HTML CANVAS — GITHUB + VERCEL + FIREBASE
+HTML CANVAS — GITHUB + VERCEL + FIREBASE SPARK
+================================================
 
-Η εφαρμογή είναι web έκδοση. Δεν χρειάζεται Lovable και δεν χρειάζεται Windows EXE.
+ΑΥΤΗ Η ΕΚΔΟΣΗ ΔΕΝ ΧΡΗΣΙΜΟΠΟΙΕΙ FIREBASE STORAGE.
 
-ΤΙ ΧΡΗΣΙΜΟΠΟΙΕΙ
-- GitHub: αποθήκευση κώδικα
-- Vercel: φιλοξενία / deploy
-- Firebase Authentication: σύνδεση με Google
-- Cloud Firestore: folders + HTML components
-- Firebase Storage: preview εικόνες
-- Firebase Analytics: έχει ήδη συνδεθεί με το measurementId του project
+1. FIREBASE AUTHENTICATION
+--------------------------
+Firebase Console
+→ Authentication
+→ Sign-in method
+→ Google
+→ Enable
+→ Save
 
-1. FIREBASE — ΜΙΑ ΦΟΡΑ
-Στο Firebase Console για το project html-library-861db:
+2. FIRESTORE DATABASE
+---------------------
+Firebase Console
+→ Firestore Database
+→ Create database
 
-A. Authentication
-   Build > Authentication > Get started > Sign-in method > Google > Enable > Save
+Μετά:
+→ Firestore Database
+→ Rules
 
-B. Firestore
-   Build > Firestore Database > Create database.
+Κάνε copy-paste το περιεχόμενο του αρχείου:
+firestore.rules
 
-C. Storage
-   Build > Storage > Get started.
+και πάτησε Publish.
 
-D. Rules
-   Αντέγραψε το περιεχόμενο του firestore.rules στις Firestore Rules και Publish.
-   Αντέγραψε το περιεχόμενο του storage.rules στις Storage Rules και Publish.
+3. GITHUB
+---------
+Δημιούργησε νέο repository και ανέβασε ΟΛΑ τα αρχεία αυτού του φακέλου.
 
-Οι rules επιτρέπουν σε κάθε συνδεδεμένο χρήστη να βλέπει ΜΟΝΟ τα δικά του δεδομένα.
+4. VERCEL
+---------
+Vercel
+→ Add New Project
+→ Import το GitHub repository
+→ Deploy
 
-2. GITHUB
-- Δημιούργησε ένα νέο repository.
-- Ανέβασε ΟΛΑ τα αρχεία αυτού του φακέλου στη ρίζα του repository.
-- Μην ανεβάσεις node_modules ή dist (είναι ήδη στο .gitignore).
+Το project είναι ήδη ρυθμισμένο για Vite.
 
-3. VERCEL
-- Vercel > Add New > Project.
-- Import το GitHub repository.
-- Framework: Vite (θα το αναγνωρίσει συνήθως μόνο του).
-- Build Command: npm run build
-- Output Directory: dist
-- Deploy.
+5. AUTHORIZED DOMAIN
+--------------------
+Όταν το Vercel σου δώσει διεύθυνση π.χ.
 
-4. ΠΟΛΥ ΣΗΜΑΝΤΙΚΟ ΓΙΑ GOOGLE LOGIN
-Μετά το πρώτο deploy, πάρε το domain που σου δίνει το Vercel, π.χ.
-my-html-library.vercel.app
+my-html-canvas.vercel.app
 
-Firebase Console > Authentication > Settings > Authorized domains
-και πρόσθεσε το domain ΧΩΡΙΣ https://
+πήγαινε:
+Firebase
+→ Authentication
+→ Settings
+→ Authorized domains
+→ Add domain
 
-Αν βάλεις δικό σου custom domain αργότερα, πρόσθεσέ το και αυτό.
+και πρόσθεσε:
+my-html-canvas.vercel.app
 
-5. ΧΡΗΣΗ
-- Ανοίγεις το Vercel URL.
-- Πατάς «Σύνδεση με Google».
-- Η βιβλιοθήκη αποθηκεύεται στο Firebase.
-- Αν μπεις από άλλο PC με τον ίδιο Google λογαριασμό, βλέπεις την ίδια βιβλιοθήκη.
+PREVIEW ΕΙΚΟΝΕΣ
+----------------
+Δεν ανεβαίνουν σε Storage.
+Αν βάλεις εικόνα preview, η εφαρμογή τη μικραίνει αυτόματα και την αποθηκεύει
+ως μικρό JPEG thumbnail μέσα στο Firestore.
 
-ΣΗΜΕΙΩΣΗ
-Το Firebase web apiKey δεν λειτουργεί σαν ιδιωτικός κωδικός server. Η πραγματική προστασία των δεδομένων γίνεται από Authentication + Firestore/Storage Rules. Μην αλλάξεις τις rules σε public read/write.
+Αν δεν βάλεις εικόνα, χρησιμοποιείται αυτόματο preview από το HTML.
+
+ΣΗΜΑΝΤΙΚΟ
+---------
+Το Firestore έχει όριο μεγέθους ανά document. Η εφαρμογή κάνει έλεγχο πριν
+την αποθήκευση και θα σε ενημερώσει αν ένα component είναι υπερβολικά μεγάλο.
+
+Η Firebase web apiKey δεν είναι password/server secret.
+Η προστασία της βιβλιοθήκης γίνεται από Google Authentication + Firestore Rules.
