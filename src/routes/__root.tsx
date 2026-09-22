@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Outlet, Link, createRootRouteWithContext, useRouter } from "@tanstack/react-router";
+import { useState } from "react";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 
 function NotFoundComponent() {
@@ -58,15 +59,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function CloudGate() {
-  const { user, loading, error, errorCode, signIn, clearError } = useAuth();
+  const { user, loading, error, signIn, clearError } = useAuth();
+  const [code, setCode] = useState("");
 
   if (loading) {
     return (
       <div className="grid min-h-screen place-items-center bg-background text-foreground">
-        <div className="text-center">
-          <div className="text-4xl">🌳</div>
-          <p className="mt-3 text-sm text-muted-foreground">Σύνδεση με Firebase…</p>
-        </div>
+        <p className="text-sm text-muted-foreground">Φόρτωση…</p>
       </div>
     );
   }
@@ -78,45 +77,39 @@ function CloudGate() {
           <div className="absolute -left-32 -top-40 h-[520px] w-[520px] rounded-full bg-brand/35 blur-[120px]" />
           <div className="absolute right-0 top-40 h-[460px] w-[460px] rounded-full bg-cyanx/25 blur-[120px]" />
         </div>
-        <div className="relative z-10 w-full max-w-md rounded-3xl border border-border bg-card/90 p-8 text-center shadow-2xl backdrop-blur-xl">
+        <form
+          className="relative z-10 w-full max-w-md rounded-3xl border border-border bg-card/90 p-8 text-center shadow-2xl backdrop-blur-xl"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void signIn(code);
+          }}
+        >
           <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-gradient-to-br from-brand to-cyanx text-3xl">🌳</div>
           <h1 className="mt-5 font-display text-2xl font-semibold">HTML Library</h1>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Η βιβλιοθήκη σου αποθηκεύεται στο Firebase και συγχρονίζεται όταν συνδέεσαι με τον ίδιο Google λογαριασμό.
-          </p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">Προσωπική βιβλιοθήκη</p>
+          <input
+            type="password"
+            inputMode="numeric"
+            autoFocus
+            autoComplete="current-password"
+            value={code}
+            onChange={(event) => {
+              setCode(event.target.value);
+              if (error) clearError();
+            }}
+            placeholder="Κωδικός πρόσβασης"
+            className="mt-6 w-full rounded-xl border border-border bg-background/70 px-4 py-3 text-center text-base tracking-widest outline-none focus:border-brand"
+          />
           <button
-            onClick={() => void signIn()}
-            className="mt-6 w-full rounded-xl bg-gradient-to-r from-brand to-cyanx px-4 py-3 text-sm font-medium text-primary-foreground shadow-lg shadow-brand/20"
+            type="submit"
+            className="mt-3 w-full rounded-xl bg-gradient-to-r from-brand to-cyanx px-4 py-3 text-sm font-medium text-primary-foreground shadow-lg shadow-brand/20"
           >
-            Σύνδεση με Google
+            Είσοδος
           </button>
-          <p className="mt-3 text-[10px] leading-4 text-muted-foreground">
-            Αν το Google παράθυρο ανοίξει και κλείσει αμέσως, εδώ θα εμφανιστεί πλέον
-            ο ακριβής λόγος.
-          </p>
           {error && (
-            <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-left">
-              <p className="text-sm font-semibold text-red-500">
-                Η σύνδεση δεν ολοκληρώθηκε
-              </p>
-              <p className="mt-2 text-xs leading-5 text-red-400">{error}</p>
-              {errorCode && (
-                <p className="mt-2 font-mono text-[10px] text-muted-foreground">
-                  Κωδικός: {errorCode}
-                </p>
-              )}
-              <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
-                Τρέχον domain: {typeof window !== "undefined" ? window.location.hostname : ""}
-              </p>
-              <button
-                onClick={clearError}
-                className="mt-3 rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground"
-              >
-                Κλείσιμο μηνύματος
-              </button>
-            </div>
+            <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{error}</p>
           )}
-        </div>
+        </form>
       </div>
     );
   }

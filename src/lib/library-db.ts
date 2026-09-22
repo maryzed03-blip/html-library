@@ -1,13 +1,3 @@
-import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  setDoc,
-  type Unsubscribe,
-} from "firebase/firestore";
-import { firestore } from "./firebase";
-
 export type Folder = {
   id: string;
   name: string;
@@ -28,83 +18,75 @@ export type Component = {
   lastUsedAt: number | null;
 };
 
-const userCollection = (uid: string, name: "folders" | "components") =>
-  collection(firestore, "users", uid, name);
+type Unsubscribe = () => void;
+type Bucket = "folders" | "components";
+const listeners = new Map<string, Set<() => void>>();
 
-function utf8Bytes(value: unknown): number {
-  return new TextEncoder().encode(JSON.stringify(value)).byteLength;
+function key(uid: string, bucket: Bucket) {
+  return `html-library:${uid}:${bucket}`;
 }
 
-// Firestore documents have a hard size limit. Keep a safety margin instead of
-// attempting a write that will fail with an unclear Firebase error.
-const SAFE_COMPONENT_BYTES = 850_000;
+function read<T>(uid: string, bucket: Bucket): T[] {
+  try {
+    const raw = localStorage.getItem(key(uid, bucket));
+    return raw ? (JSON.parse(raw) as T[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function write<T extends { id: string }>(uid: string, bucket: Bucket, items: T[]) {
+  localStorage.setItem(key(uid, bucket), JSON.stringify(items));
+  listeners.get(key(uid, bucket))?.forEach((fn) => fn());
+}
+
+function watch<T>(uid: string, bucket: Bucket, onData: (items: T[]) => void, onError: (error: Error) => void): Unsubscribe {
+  const storageKey = key(uid, bucket);
+  const emit = () => {
+    try { onData(read<T>(uid, bucket)); } catch (err) { onError(err instanceof Error ? err : new Error(String(err))); }
+  };
+  const set = listeners.get(storageKey) ?? new Set<() => void>();
+  set.add(emit);
+  listeners.set(storageKey, set);
+  const storageListener = (event: StorageEvent) => { if (event.key === storageKey) emit(); };
+  window.addEventListener("storage", storageListener);
+  queueMicrotask(emit);
+  return () => {
+    set.delete(emit);
+    window.removeEventListener("storage", storageListener);
+  };
+}
+
+function put<T extends { id: string }>(uid: string, bucket: Bucket, item: T) {
+  const items = read<T>(uid, bucket);
+  const index = items.findIndex((x) => x.id === item.id);
+  if (index >= 0) items[index] = item; else items.push(item);
+  write(uid, bucket, items);
+  return item;
+}
+
+function remove(uid: string, bucket: Bucket, id: string) {
+  write(uid, bucket, read<{ id: string }>(uid, bucket).filter((x) => x.id !== id));
+}
 
 export const db = {
-  watchFolders(
-    uid: string,
-    onData: (items: Folder[]) => void,
-    onError: (error: Error) => void,
-  ): Unsubscribe {
-    return onSnapshot(
-      userCollection(uid, "folders"),
-      (snap) => onData(snap.docs.map((d) => d.data() as Folder)),
-      onError,
-    );
+  watchFolders(uid: string, onData: (items: Folder[]) => void, onError: (error: Error) => void) {
+    return watch<Folder>(uid, "folders", onData, onError);
   },
-
-  watchComponents(
-    uid: string,
-    onData: (items: Component[]) => void,
-    onError: (error: Error) => void,
-  ): Unsubscribe {
-    return onSnapshot(
-      userCollection(uid, "components"),
-      (snap) => onData(snap.docs.map((d) => d.data() as Component)),
-      onError,
-    );
+  watchComponents(uid: string, onData: (items: Component[]) => void, onError: (error: Error) => void) {
+    return watch<Component>(uid, "components", onData, onError);
   },
-
-  async putFolder(uid: string, folder: Folder) {
-    await setDoc(doc(firestore, "users", uid, "folders", folder.id), folder);
-    return folder;
-  },
-
-  async deleteFolder(uid: string, id: string) {
-    await deleteDoc(doc(firestore, "users", uid, "folders", id));
-  },
-
-  async putComponent(uid: string, component: Component): Promise<Component> {
-    const bytes = utf8Bytes(component);
-    if (bytes > SAFE_COMPONENT_BYTES) {
-      throw new Error(
-        "Το component είναι πολύ μεγάλο για αποθήκευση στο Firestore. " +
-        "Μείωσε την εικόνα preview ή αφαίρεσέ την και χρησιμοποίησε το αυτόματο HTML preview."
-      );
-    }
-
-    await setDoc(
-      doc(firestore, "users", uid, "components", component.id),
-      component,
-    );
-    return component;
-  },
-
-  async deleteComponent(uid: string, id: string) {
-    await deleteDoc(doc(firestore, "users", uid, "components", id));
-  },
+  async putFolder(uid: string, folder: Folder) { return put(uid, "folders", folder); },
+  async deleteFolder(uid: string, id: string) { remove(uid, "folders", id); },
+  async putComponent(uid: string, component: Component) { return put(uid, "components", component); },
+  async deleteComponent(uid: string, id: string) { remove(uid, "components", id); },
 };
 
-export const uid = () =>
-  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+export const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 
 export function seedFolders(): Folder[] {
   const now = Date.now();
-  const mk = (name: string, parentId: string | null): Folder => ({
-    id: uid(),
-    name,
-    parentId,
-    createdAt: now,
-  });
+  const mk = (name: string, parentId: string | null): Folder => ({ id: uid(), name, parentId, createdAt: now });
   const websites = mk("Websites", null);
   const heroes = mk("Heroes", websites.id);
   const sections = mk("Sections", websites.id);
@@ -114,18 +96,5 @@ export function seedFolders(): Folder[] {
   const nlContent = mk("Content", newsletters.id);
   const nlCtas = mk("CTAs", newsletters.id);
   const archive = mk("Archive", null);
-  return [
-    websites,
-    heroes,
-    sections,
-    mk("About", sections.id),
-    mk("Features", sections.id),
-    mk("Testimonials", sections.id),
-    footers,
-    newsletters,
-    nlHeaders,
-    nlContent,
-    nlCtas,
-    archive,
-  ];
+  return [websites, heroes, sections, mk("About", sections.id), mk("Features", sections.id), mk("Testimonials", sections.id), footers, newsletters, nlHeaders, nlContent, nlCtas, archive];
 }

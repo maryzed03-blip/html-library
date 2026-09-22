@@ -1,182 +1,61 @@
 import {
-  browserLocalPersistence,
-  onAuthStateChanged,
-  setPersistence,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-  type User,
-} from "firebase/auth";
-import {
   createContext,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { auth, googleProvider } from "./firebase";
+import { isValidAccessCode } from "./access-code.js";
+
+type LocalUser = { uid: string; email: string | null };
 
 type AuthValue = {
-  user: User | null;
+  user: LocalUser | null;
   loading: boolean;
   error: string | null;
   errorCode: string | null;
-  signIn: () => Promise<void>;
+  signIn: (code: string) => Promise<void>;
   signOut: () => Promise<void>;
   clearError: () => void;
 };
 
 const AuthContext = createContext<AuthValue | null>(null);
+const SESSION_KEY = "html-library-owner-unlocked";
+const OWNER_UID = "personal-owner";
 
-function getFirebaseCode(err: unknown): string {
-  if (typeof err === "object" && err !== null && "code" in err) {
-    const code = (err as { code?: unknown }).code;
-    return typeof code === "string" ? code : "";
-  }
-  return "";
-}
-
-function friendlyAuthError(err: unknown): { code: string; message: string } {
-  const code = getFirebaseCode(err);
-  const host =
-    typeof window !== "undefined" ? window.location.hostname : "το domain του site";
-
-  switch (code) {
-    case "auth/unauthorized-domain":
-      return {
-        code,
-        message:
-          `Το domain "${host}" δεν είναι ακόμα εξουσιοδοτημένο στο Firebase. ` +
-          `Πήγαινε Firebase → Authentication → Settings → Authorized domains → Add domain και πρόσθεσε: ${host}`,
-      };
-
-    case "auth/operation-not-allowed":
-      return {
-        code,
-        message:
-          "Το Google Sign-In δεν είναι ενεργό. Πήγαινε Firebase → Authentication → Sign-in method → Google → Enable → Save.",
-      };
-
-    case "auth/popup-blocked":
-      return {
-        code,
-        message:
-          "Ο browser μπλόκαρε το παράθυρο σύνδεσης. Επίτρεψε pop-ups για αυτό το site και ξαναπάτησε «Σύνδεση με Google».",
-      };
-
-    case "auth/popup-closed-by-user":
-      return {
-        code,
-        message:
-          "Το παράθυρο σύνδεσης έκλεισε πριν ολοκληρωθεί η είσοδος. Πάτησε ξανά «Σύνδεση με Google» και ολοκλήρωσε τη διαδικασία.",
-      };
-
-    case "auth/network-request-failed":
-      return {
-        code,
-        message:
-          "Δεν ολοκληρώθηκε η επικοινωνία με το Firebase/Google. Έλεγξε τη σύνδεση internet και δοκίμασε ξανά.",
-      };
-
-    case "auth/cancelled-popup-request":
-      return {
-        code,
-        message:
-          "Ξεκίνησε δεύτερο παράθυρο σύνδεσης πριν ολοκληρωθεί το πρώτο. Περίμενε ένα δευτερόλεπτο και δοκίμασε ξανά.",
-      };
-
-    default: {
-      const raw =
-        err instanceof Error
-          ? err.message
-          : typeof err === "string"
-            ? err
-            : "Άγνωστο σφάλμα σύνδεσης.";
-      return {
-        code: code || "auth/unknown",
-        message: `Η σύνδεση με Google δεν ολοκληρώθηκε. ${raw}`,
-      };
-    }
-  }
+function initialUser(): LocalUser | null {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem(SESSION_KEY) === "1"
+    ? { uid: OWNER_UID, email: null }
+    : null;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<LocalUser | null>(() => initialUser());
   const [error, setError] = useState<string | null>(null);
-  const [errorCode, setErrorCode] = useState<string | null>(null);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(
-      auth,
-      (next) => {
-        setUser(next);
-        setLoading(false);
-        if (next) {
-          setError(null);
-          setErrorCode(null);
-        }
-      },
-      (err) => {
-        const info = friendlyAuthError(err);
-        setError(info.message);
-        setErrorCode(info.code);
-        setLoading(false);
-      },
-    );
-
-    return unsub;
-  }, []);
 
   const value = useMemo<AuthValue>(
     () => ({
       user,
-      loading,
+      loading: false,
       error,
-      errorCode,
-
-      clearError: () => {
+      errorCode: null,
+      clearError: () => setError(null),
+      signIn: async (code: string) => {
         setError(null);
-        setErrorCode(null);
-      },
-
-      signIn: async () => {
-        setError(null);
-        setErrorCode(null);
-
-        try {
-          await setPersistence(auth, browserLocalPersistence);
-
-          // Always allow the user to explicitly choose the Google account.
-          googleProvider.setCustomParameters({
-            prompt: "select_account",
-          });
-
-          await signInWithPopup(auth, googleProvider);
-        } catch (err) {
-          const info = friendlyAuthError(err);
-          setError(info.message);
-          setErrorCode(info.code);
-
-          // Do not rethrow: the UI now shows the useful Firebase error instead
-          // of leaving an unhandled rejected Promise after the popup closes.
-          console.error("Firebase Google sign-in failed:", err);
+        if (!isValidAccessCode(code)) {
+          setError("Ο κωδικός δεν είναι σωστός.");
+          return;
         }
+        sessionStorage.setItem(SESSION_KEY, "1");
+        setUser({ uid: OWNER_UID, email: null });
       },
-
       signOut: async () => {
-        setError(null);
-        setErrorCode(null);
-        try {
-          await firebaseSignOut(auth);
-        } catch (err) {
-          const info = friendlyAuthError(err);
-          setError(info.message);
-          setErrorCode(info.code);
-        }
+        sessionStorage.removeItem(SESSION_KEY);
+        setUser(null);
       },
     }),
-    [user, loading, error, errorCode],
+    [user, error],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -115,6 +115,11 @@ function LibraryPage() {
             Firebase: {lib.error}
           </div>
         )}
+        {lib.mirrorError && (
+          <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600">
+            Τοπική αποθήκευση: {lib.mirrorError}
+          </div>
+        )}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-brand to-cyanx font-display font-bold text-primary-foreground">
@@ -123,7 +128,7 @@ function LibraryPage() {
             <div>
               <h1 className="font-display text-lg font-semibold leading-none">HTML Library</h1>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Cloud βιβλιοθήκη components · συγχρονισμός με Firebase
+                Προσωπική βιβλιοθήκη HTML · previews & τοπικά αρχεία
               </p>
             </div>
           </div>
@@ -137,6 +142,15 @@ function LibraryPage() {
                 className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
             </div>
+            {lib.mirrorSupported && (
+              <button
+                onClick={() => void lib.connectLocalFolder().then((name) => name && notify(`Τοπικός φάκελος: ${name}`))}
+                className={`rounded-xl border px-3 py-2 text-sm ${lib.mirrorName ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500" : "border-border bg-foreground/5 text-foreground/80"}`}
+                title={lib.mirrorName ? `Τα HTML αποθηκεύονται και στον φάκελο ${lib.mirrorName}` : "Επίλεξε φάκελο στον υπολογιστή σου για αντίγραφα .html"}
+              >
+                {lib.mirrorName ? `💾 ${lib.mirrorName}` : "💾 Σύνδεση τοπικού φακέλου"}
+              </button>
+            )}
             <Link
               to="/scratch"
               className="rounded-xl border border-border bg-foreground/5 px-3 py-2 text-sm text-foreground/80"
